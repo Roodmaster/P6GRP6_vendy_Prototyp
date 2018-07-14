@@ -1,11 +1,9 @@
-// P6, Team 6, »vendy« , Jeannine Krämer, Sebastian Meidel, Uta Janzen, Raphael Herres, Marie Steinbrügge
-// 2018 Sebastian Meidel
 
 //initialisiere database
 const sqlite3 = require('sqlite3').verbose();
 
 //database spezifikation
-let db = new sqlite3.Database('./db/vendy-database-01.db');
+let db = new sqlite3.Database('./db/vendy-database-02.db');
 
 //Globale Variablen
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -14,48 +12,27 @@ var rssi                                                //Globale Variable rssi 
 var mac                                                 //Globale Variable mac ist hier noch nicht gefüllt
 var distance                                            //Globale Variable distance hier noch nicht gefüllt
 var esp                                                 //Globale Variable esp ist hier noch nicht gefüllt
-//Globale Variablen zur Bestimmung der aktuellen Zeit
-var heute = new Date();                                 //startet ein neues Date-Objekt
-var stunden = heute.getHours();                         //bezieht du stunden aus dem Date-Objekt
-var minuten = heute.getMinutes();                       //bezieht die minutzen aus dem Date-Objekt
-var sekunden = heute.getSeconds();                      //bezieht die sekunden aus dem Date-Objekt
 
-var time1;
-var time2;
-var time3;
-
-if(sekunde < 10){              //wenn Sekunden kleiner 10, wird eine Null angehängt
-  time1 = '0' + sekunden;
-}else{
-  time1 = sekunden;
-}
-
-if(minuten < 10){              //wenn Minuten kleiner 10, wird eine Null angehängt
-  time2 = '0' + minuten;
-}else{
-  time2 = minuten;
-}
-
-if(stunden < 10){              //wenn Stunden kleiner 10, wird eine Null angehängt
-  time3 = '0' + stunden;
-}else{
-  time3 = stunden;
-}
-
-var time = time3+':'+time2+':'+time1;            //erstellt eine Variable "zeit" aus allen einzelnen Objekten
-////////////////////////////////////////////////////////////////////////////////////////////////////////
+var topic1 = 'Eingang';                                   //ESP-Topics zum abonieren
+var topic2 = 'Fensterreihe';
+var topic3 = 'Chillarea';
+var y = 0                                //ESP-Topics zum abonieren
 
 
-//MQTT-Broker einrichten, abonnieren und publishen von Nachrichten
+//MQTT-Brocker einrichten, abonnieren und publishen von Nachrichten
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 var mqtt = require('mqtt')                              //MQTT Initialisieren
-var client  = mqtt.connect('mqtt://192.168.178.38')     //Verbindung zum Server durch IP-Adresse (I-Net-Adresse des Computers auf dem der Server läuft)
-var messageText                                         //Variable ist hier noch nicht gefüllt
+var client  = mqtt.connect('mqtt://192.168.8.105')     //Verbindung zum Server durch IP-Adresse (I-Net-Adresse des Computers auf dem der Server läuft)
+var messageText
+//console.log("bis hier hin");                                       //Variable ist hier noch nicht gefüllt
 
 client.on('connect', function () {                      //Funktion zum Aufbau der Verbindung
-  //console.log("connected")                            //Signalisiert eine aufrechte Verbindung
-  client.subscribe('vendy');                            //Abonniert das gewünschte Topic
-  //client.publish('published');                        //Veröffentlicht etwas unter der "debug"-Topic
+                              //Signalisiert eine aufrechte Verbindung
+  client.subscribe(topic1);                             //Abonniert das gewünschte Topic
+  client.subscribe(topic2);
+  client.subscribe(topic3);
+  //client.publish('published');
+  console.log("connected");                        //Veröffentlicht etwas unter dem "debug"-Topic
 })
 
 client.on('message', function (topic, message) {        //Funktion die die ankommenden Messages abfängt und ausgibt
@@ -69,9 +46,42 @@ client.on('message', function (topic, message) {        //Funktion die die ankom
 //Generiert Variablen aus der empfangenen Nachricht/bricht den String wieder auf
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 client.on('message', function textfilter(message) {     //Funktion die die ankommenden Messages in Bestandteile zerlegt, textfilter = Funktionsname
-  var match = messageText.match(/Topic: ([a-z]+) RSSI: (-\d\d) MAC: ([a-f0-9:]+)/);  //Sucht nach Matches innerhalb der ankommenden Message mithilfe von regular Expressions
+
+    //Globale Variablen zur Bestimmung der aktuellen Zeit
+    var heute = new Date();                                 //startet ein neues Date-Objekt
+    var stunden = heute.getHours();                         //bezieht du stunden aus dem Date-Objekt
+    var minuten = heute.getMinutes();                       //bezieht die minutzen aus dem Date-Objekt
+    var sekunden = heute.getSeconds();                      //bezieht die sekunden aus dem Date-Objekt
+    var time1;
+    var time2;
+    var time3;
+
+    if(sekunden < 10){
+      time1 = '0' + sekunden;
+    }else{
+      time1 = sekunden;
+    }
+
+    if(minuten < 10){
+      time2 = '0' + minuten;
+    }else{
+      time2 = minuten;
+    }
+
+    if(stunden < 10){
+      time3 = '0' + stunden;
+    }else{
+      time3 = stunden;
+    }
+
+    var time = time3+':'+time2+':'+time1;            //erstellt eine Variable "zeit" aus allen einzelnen Objekten
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+  var match = messageText.match(/Topic: ([A-z]+) RSSI: (-\d\d) MAC: ([a-f0-9:]+)/);  //Sucht nach Matches innerhalb der ankommenden Message mithilfe von regular Expressions
                                                                                      //Regular Expressions https://regexr.com/
   if (!match) {                                         //Wird ausgeführt wenn kein Match gefunden wird
+    console.log("TEST");
     return;                                             //Gibt die Matches zurück
   }
         esp = match[1];                                 //Füllt die globale Variable mit dem ersten Match
@@ -95,13 +105,16 @@ client.on('message', function textfilter(message) {     //Funktion die die ankom
         console.log(error.message);                     //Meldet Fehler falls Datenbank schon vorhanden
       }
     });
-
+console.log('hallo');
         db.run('INSERT INTO Mac(ESP,Adress,Distance,Time) VALUES(?,?,?,?)', [esp, mac, distance, time], function(err) { //Schreibt vier Werte in die Vier Spalten der Datenbank
             if (err) {                                  //Meldet Fehler falls der Schreibvorgang fehlgeschlagen ist
               return console.log(err.message);          //Meldet Fehler falls der Schreibvorgang fehlgeschlagen ist
             }
             console.log(`A row has been inserted with rowid ${this.lastID}`); //Meldet Bestätigung falls der Schreibvorgang erfolgreich war
           });
+
+
+
      ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 })
